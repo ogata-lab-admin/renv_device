@@ -62,38 +62,35 @@ class RenvDevice():
         print message
 
     def getDeviceInfo(self):
-        return self.deviceInfoText
-
-    deviceInfoText = {
-        "deviceTypeId":"WEB.DEVICE.COLOR",
-        "deviceId":"12345678-1234-5678-9abc-123456789abe",
-        "deviceName":"ColorChangeDevice2",
-        "capabilityList": [{
-                "eventName": "ChangeColorRequest",
-                "eventType": "Out",
-                "eventComment": "エリア色変更要求",
-                "hasParam": False }, {
-                "eventName": "ChangeColorResponse",
-                "eventType": "In",
-                "eventComment": "エリア色変更結果",
-                "hasParam": True,
-                "paramInfo": [{"paramName":"area", "paramComment":"エリア指定", "paramType":"String",
-                             "paramLimitation":"SelectForm", "paramElements":[{"paramData":"area1","paramComment":"エリア１"},{"paramData":"area2","paramComment":"エリア２"}]},
-                            {"paramName":"color", "paramComment":"色指定", "paramType":"String",
-                             "paramLimitation":"SelectForm","paramElements":[{"paramData":"red","paramComment":"赤"},{"paramData":"blue","paramComment":"青"},{"paramData":"white","paramComment":"白"}]}
+        return {"deviceTypeId":"WEB.DEVICE.COLOR",
+                "deviceId":"12345678-1234-5678-9abc-123456789abe",
+                "deviceName": self.name,
+                "capabilityList": [{
+                    "eventName": "ChangeColorRequest",
+                    "eventType": "Out",
+                    "eventComment": "エリア色変更要求",
+                    "hasParam": False }, {
+                    "eventName": "ChangeColorResponse",
+                    "eventType": "In",
+                    "eventComment": "エリア色変更結果",
+                    "hasParam": True,
+                    "paramInfo": [{"paramName":"area", "paramComment":"エリア指定", "paramType":"String",
+                                   "paramLimitation":"SelectForm", "paramElements":[{"paramData":"area1","paramComment":"エリア１"},{"paramData":"area2","paramComment":"エリア２"}]},
+                                  {"paramName":"color", "paramComment":"色指定", "paramType":"String",
+                                   "paramLimitation":"SelectForm","paramElements":[{"paramData":"red","paramComment":"赤"},{"paramData":"blue","paramComment":"青"},{"paramData":"white","paramComment":"白"}]}
                             ]}, {
-                "eventName": "ChangeSceneRequest",
-                "eventType": "Out",
-                "eventComment": "シーン変更要求",
-                "hasParam": False }, {
-                "eventName": "ChangeSceneResponse",
-                "eventType": "In",
-                "eventComment": "シーン変更結果",
-                "hasParam": True,
-                "paramInfo": [{"paramName":"scene", "paramComment":"シーン状態", "paramType":"String",
-                             "paramLimitation":"SelectForm","paramElements":[{"paramData":"scene1","paramComment":"シーン１"},{"paramData":"scene2","paramComment":"シーン２"}]}
-                            ]}
-            ]}
+                    "eventName": "ChangeSceneRequest",
+                    "eventType": "Out",
+                    "eventComment": "シーン変更要求",
+                    "hasParam": False }, {
+                    "eventName": "ChangeSceneResponse",
+                    "eventType": "In",
+                    "eventComment": "シーン変更結果",
+                    "hasParam": True,
+                    "paramInfo": [{"paramName":"scene", "paramComment":"シーン状態", "paramType":"String",
+                                   "paramLimitation":"SelectForm","paramElements":[{"paramData":"scene1","paramComment":"シーン１"},{"paramData":"scene2","paramComment":"シーン２"}]}
+                                  ]}
+                                   ]}
 
 
     
