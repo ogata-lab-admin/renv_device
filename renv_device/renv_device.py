@@ -24,7 +24,7 @@ class RenvDevice():
 
     @property
     def typeId(self):
-        return self._typeId
+        return self.__typeId
 
 
     def connect(self, host, proxy_host=None, proxy_port=None):
@@ -69,8 +69,8 @@ class RenvDevice():
         print message
 
     def getDeviceInfo(self):
-        return {"deviceTypeId": self.typeId
-                "deviceId": self.id
+        return {"deviceTypeId": self.typeId,
+                "deviceId": self.id,
                 "deviceName": self.name,
                 "capabilityList": [{
                     "eventName": "ChangeColorRequest",

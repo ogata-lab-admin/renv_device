@@ -13,7 +13,7 @@ class TestRenvDevice(unittest.TestCase):
         self._devId = "uuid-1234-5678-9012"
         self._devTypeId = "WEB.DEVICE.TEST_DEVICE"
         self._devName = "name-renv-device-name-for-test"
-        self._rd = renv_device.RenvDevice(self._devId, self._devTypeId, self._devName)
+        self._rd = renv_device.RenvDevice(self._devTypeId, self._devId, self._devName)
 
     def test_givenNameIsEqualToDeviceInfoName(self):
         """
