@@ -61,6 +61,9 @@ class RenvDevice():
     def _dispatch_message(self, message):
         print message
 
+    def getDeviceInfo(self):
+        return self.deviceInfoText
+
     deviceInfoText = {
         "deviceTypeId":"WEB.DEVICE.COLOR",
         "deviceId":"12345678-1234-5678-9abc-123456789abe",
