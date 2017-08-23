@@ -7,8 +7,8 @@ import websocket
 
 class RenvDevice():
 
-    def __init__(self, deviceId, uuid, name):
-        self.__deviceId = deviceId
+    def __init__(self, typeId, uuid, name):
+        self.__typeId = typeId
         self.__uuid = uuid
         self.__name = name
 
@@ -18,6 +18,13 @@ class RenvDevice():
     def name(self):
         return self.__name
     
+    @property
+    def id(self):
+        return self.__uuid
+
+    @property
+    def typeId(self):
+        return self._typeId
 
 
     def connect(self, host, proxy_host=None, proxy_port=None):
@@ -62,8 +69,8 @@ class RenvDevice():
         print message
 
     def getDeviceInfo(self):
-        return {"deviceTypeId":"WEB.DEVICE.COLOR",
-                "deviceId":"12345678-1234-5678-9abc-123456789abe",
+        return {"deviceTypeId": self.typeId
+                "deviceId": self.id
                 "deviceName": self.name,
                 "capabilityList": [{
                     "eventName": "ChangeColorRequest",
