@@ -1,10 +1,35 @@
 #!/usr/bin/env
 #  -*- coding: utf-8 -*- 
 
-
+import os, types, inspect
 import json
 import websocket
 
+def parse_param(line):
+    value = line[6:].strip()
+    typeStr = value[value.find('{')+1: value.find('}')].strip()
+    value = value[value.find('}')+1:]
+    comment = value.find('[') < 0 ? value : value[:value.find('[')].strip()
+    paramstr = 
+    return value
+
+def parse_doc(doc):
+    param_parse = False
+    outDoc = ''
+    params = []
+    for line in doc.split('\n'):
+        line = line.strip()
+        if line.startswith('@'):
+            params.append(parse_param(line))
+            param_parse = True
+            continue
+
+        if not param_parse:
+            outDoc = outDoc + line
+
+        pass
+    return outDoc.strip(), params
+            
 class RenvDevice():
 
     def __init__(self, typeId, uuid, name):
@@ -69,10 +94,36 @@ class RenvDevice():
         print message
 
     def getDeviceInfo(self):
+
+        for key in dir(self):
+            capabilities = []
+            if (key.startswith('on') and type(getattr(self, key)) == types.MethodType):
+                args, _, _, _ = inspect.getargspec(getattr(self, key))
+                args = args[1:] # fist one is self
+
+                doc = getattr(self, key).__doc__
+                docInfo, paramInfo = parse_doc(doc)
+                capability = {
+                    "eventName" : key[2: ],
+                    "eventType" : "In",
+                    "eventComment" : docInfo,
+                    "hasParam" : len(args) > 0,
+                    "paramInfo" : paramInfo
+                    }
+                
+                print capability
+                capabilities.append(capability)
+
+
         return {"deviceTypeId": self.typeId,
                 "deviceId": self.id,
                 "deviceName": self.name,
-                "capabilityList": [{
+                "capabilityList": capabilities }
+
+
+    val = {    
+    "capabilityList": [
+                {
                     "eventName": "ChangeColorRequest",
                     "eventType": "Out",
                     "eventComment": "エリア色変更要求",
@@ -81,11 +132,23 @@ class RenvDevice():
                     "eventType": "In",
                     "eventComment": "エリア色変更結果",
                     "hasParam": True,
-                    "paramInfo": [{"paramName":"area", "paramComment":"エリア指定", "paramType":"String",
-                                   "paramLimitation":"SelectForm", "paramElements":[{"paramData":"area1","paramComment":"エリア１"},{"paramData":"area2","paramComment":"エリア２"}]},
-                                  {"paramName":"color", "paramComment":"色指定", "paramType":"String",
-                                   "paramLimitation":"SelectForm","paramElements":[{"paramData":"red","paramComment":"赤"},{"paramData":"blue","paramComment":"青"},{"paramData":"white","paramComment":"白"}]}
-                            ]}, {
+                    "paramInfo": [{"paramName":"area", 
+                                   "paramComment":"エリア指定", 
+                                   "paramType":"String",
+                                   "paramLimitation":"SelectForm", 
+                                   "paramElements": [{"paramData":"area1",
+                                                      "paramComment":"エリア１"},
+                                                     {"paramData":"area2",
+                                                      "paramComment":"エリア２"}]},
+                                  {"paramName":"color", 
+                                   "paramComment":"色指定", 
+                                   "paramType":"String",
+                                   "paramLimitation":"SelectForm",
+                                   "paramElements":[{"paramData":"red","paramComment":"赤"},
+                                                    {"paramData":"blue","paramComment":"青"},
+                                                    {"paramData":"white","paramComment":"白"}]}
+                            ]}, 
+                {
                     "eventName": "ChangeSceneRequest",
                     "eventType": "Out",
                     "eventComment": "シーン変更要求",
@@ -97,7 +160,8 @@ class RenvDevice():
                     "paramInfo": [{"paramName":"scene", "paramComment":"シーン状態", "paramType":"String",
                                    "paramLimitation":"SelectForm","paramElements":[{"paramData":"scene1","paramComment":"シーン１"},{"paramData":"scene2","paramComment":"シーン２"}]}
                                   ]}
-                                   ]}
+                ]
+                }
 
 
     

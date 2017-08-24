@@ -28,19 +28,21 @@ class TestRenvDeviceInfo(unittest.TestCase):
         self.assertEqual(self._devId, deviceInfo['deviceId'])
 
 
+class MyRenvDevice(renv_device.RenvDevice):
+    def __init__(self, typeId, id, name):
+        renv_device.RenvDevice.__init__(self, typeId, id, name)
+        pass
+    
+    
+    def onSetup(self):
+        print 'onSetup is called'
+        pass
+
+
+
 class TestRenvDeviceInfo(unittest.TestCase):
     """test class of tashizan.py
     """
-
-    class MyRenvDevice(renv_device.RenvDevice):
-        def __init__(self, typeId, id, name):
-            renv_device.RenvDevice.__init__(self, typeId, id, name):
-            pass
-
-
-        def onSetup(self):
-            print 'onSetup is called'
-            pass
 
         
             
