@@ -5,28 +5,62 @@ import os, types, inspect
 import json
 import websocket
 
-def parse_param(line):
+class InvalidDocFormatError():
+    def __init__(self, msg):
+        self._msg = msg
+        pass
+
+    def __str__(self):
+        return self._msg
+
+def parse_param(line_num, line, args):
     value = line[6:].strip()
     typeStr = value[value.find('{')+1: value.find('}')].strip()
     value = value[value.find('}')+1:]
-    comment = value.find('[') < 0 ? value : value[:value.find('[')].strip()
-    paramstr = 
-    return value
+    name = value.split()[0]
+    if not name in args:
+        raise InvalidDocFormatError('Line(' + str(line_num) + ') param name "' + name + '" not found')
+    value = value[len(name)+1:].strip()
 
-def parse_doc(doc):
+    limitation = 'SelectForm' if value.find('[') >= 0 else 'FreeForm'
+    comment = value if value.find('[') < 0 else value[:value.find('[')].strip()
+    
+    altInfos = []
+    if limitation == 'SelectForm':
+        value = value[value.find('[')+1: value.find(']')]
+        for arg_alt_info in [v.strip() for v in value.split('|')]:
+            if arg_alt_info.find(':') < 0:
+                raise InvalidDocFormatError('Line(' + str(line_num) + ') selection value does not have comment.')
+            tokens = arg_alt_info.split(':')
+            altInfos.append({
+                    "paramData" : tokens[0].strip(),
+                    "paramComment" : tokens[1].strip() })
+        
+            pass
+        pass
+    info = {
+        "paramName" : name,
+        "paramType" : typeStr,
+        "paramComment" : comment,
+        "paramLimitation" : limitation,
+        }
+    if limitation == "SelectForm":
+        info["paramElements"] = altInfos
+    return info
+
+def parse_doc(doc, args):
     param_parse = False
     outDoc = ''
     params = []
-    for line in doc.split('\n'):
+    for i, line in enumerate(doc.split('\n')):
         line = line.strip()
-        if line.startswith('@'):
-            params.append(parse_param(line))
+        if line.startswith('@') and line.split()[0][1:] == 'param':
+            params.append(parse_param(i, line, args))
             param_parse = True
             continue
 
         if not param_parse:
             outDoc = outDoc + line
-
         pass
     return outDoc.strip(), params
             
@@ -36,7 +70,6 @@ class RenvDevice():
         self.__typeId = typeId
         self.__uuid = uuid
         self.__name = name
-
         pass
 
     @property
@@ -94,24 +127,43 @@ class RenvDevice():
         print message
 
     def getDeviceInfo(self):
-
+        capabilities = []
         for key in dir(self):
-            capabilities = []
             if (key.startswith('on') and type(getattr(self, key)) == types.MethodType):
                 args, _, _, _ = inspect.getargspec(getattr(self, key))
                 args = args[1:] # fist one is self
-
+                hasParam = len(args) > 0
                 doc = getattr(self, key).__doc__
-                docInfo, paramInfo = parse_doc(doc)
+                docInfo, paramInfo = parse_doc(doc, args)
                 capability = {
                     "eventName" : key[2: ],
                     "eventType" : "In",
                     "eventComment" : docInfo,
-                    "hasParam" : len(args) > 0,
+                    "hasParam" : hasParam,
                     "paramInfo" : paramInfo
                     }
+
+                if key[2:] in [c['eventName'] for c in capabilities]:
+                    raise InvalidDocFormatError('Same Key is detected ("' + key[2: ] + '")')
+
+
+                capabilities.append(capability)
+
+            elif (key.startswith('send') and type(getattr(self, key)) == types.MethodType):
+                args, _, _, _ = inspect.getargspec(getattr(self, key))
+                args = args[1:] # first one is self
+                hasParam = False
+                docInfo, paramInfo = parse_doc(doc, args)
+                capability = {
+                    "eventName" : key[4: ],
+                    "eventType" : "Out",
+                    "eventComment" : docInfo,
+                    "hasParam" : hasParam }
                 
-                print capability
+                #print [c['eventName'] for c in capabilities]
+
+                if key[4:] in [c['eventName'] for c in capabilities]:
+                    raise InvalidDocFormatError('Same Key is detected ("' + key[4: ] + '")')
                 capabilities.append(capability)
 
 
@@ -127,7 +179,8 @@ class RenvDevice():
                     "eventName": "ChangeColorRequest",
                     "eventType": "Out",
                     "eventComment": "エリア色変更要求",
-                    "hasParam": False }, {
+                    "hasParam": False }, 
+                {
                     "eventName": "ChangeColorResponse",
                     "eventType": "In",
                     "eventComment": "エリア色変更結果",

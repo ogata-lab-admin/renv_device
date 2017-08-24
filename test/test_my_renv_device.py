@@ -23,12 +23,20 @@ class MyRenvDevice(renv_device.RenvDevice):
 
     def onEcho(self, value):
         """
-        This function echoes
+        This function echoes the given value
         
-        @param {String} value Echo back value [echo1 : Echo Data 1, echo2 : Echo Data 2]
+        @param {String} value Echo back value [echo1 : Echo Data 1 | echo2 : Echo Data 2]
         """
         print value
         pass
+
+
+    def sendEchoBack(self, value):
+        """
+        This function send back the echo information.
+        """
+        return value
+        
 
 
 class TestMyRenvDeviceInfo(unittest.TestCase):
@@ -47,10 +55,23 @@ class TestMyRenvDeviceInfo(unittest.TestCase):
         """
         """
         deviceInfo = self._rd.getDeviceInfo()
+        #print deviceInfo
         self.assertEqual(self._devId, deviceInfo['deviceId'])
+        self.assertEqual(self._devTypeId, deviceInfo['deviceTypeId'])
+        self.assertEqual(self._devName, deviceInfo['deviceName'])
+                         
+        capabilities = deviceInfo['capabilityList']
+        foundSetup = False
+        foundEcho = False
+        foundEchoBack = False
+        for c in capabilities:
+            if c['eventName'] == 'Setup':
+            if c['eventName'] == 'Echo':
+                foundEcho = True
+                self.assertEqual(c['eventType'], "In")
 
-
-
+                
+        #print deviceInfo
 
 if __name__ == "__main__":
     unittest.main()
