@@ -12,7 +12,7 @@ setup(name='renv_device',
       packages = ["renv_device"],
       #py_modules = ["pepper_kinematics"],
       license = 'GPLv3',
-      install_requires = ['websocket-client', 'bitstring'],
+      install_requires = ['websocket-client', 'bitstring', 'pyyaml'],
       classifiers = [
         'Development Status :: 4 - Beta',
         'Environment :: Console',

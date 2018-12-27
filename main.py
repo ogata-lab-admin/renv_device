@@ -6,7 +6,7 @@ import os, sys, traceback, logging, codecs, argparse
 from logging import getLogger
 
 from renv_device import RenvDevice, actionHandler, event
-sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
+# sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
 #host = "localhost:8080"
 host = "renv.xfarm.jp:8443"
@@ -28,7 +28,20 @@ class MyRenvDevice(RenvDevice):
         # RenvDevice.__init__(self, 'WEB.DEVICE.TESTER', 'ogata-tester', use_mta=False)
         RenvDevice.__init__(self, filename=filename, logger=logger)
         self._msg_buffer = []
+
+        paramInfo = self.buildParamInfo('arg1', 'String', 'Test argument')
+        self.addCustomActionHandler('Echo2', 'Test Command', [paramInfo], self._handler)
+        print self.deviceInfoText
+        
+        self.updateDeviceInfo()
+
+        print '-'*20
+        print self.deviceInfoText
         pass
+
+    def _handler(self, arg1):
+        print ('MyRenvDevice._handler called')
+        print (arg1)
     
     def hoge_onSetup(self):
         """
@@ -51,18 +64,20 @@ class MyRenvDevice(RenvDevice):
 
 
 def main():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--filename', help='config file path', type=str, dest='filename', default=None)
-    parser.add_argument('-o', '--o', help='capability description output file path', type=str, dest='output', default=None)
-    args = parser.parse_args()
+    try:
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-f', '--filename', help='config file path', type=str, dest='filename', default=None)
+        parser.add_argument('-o', '--o', help='capability description output file path', type=str, dest='output', default=None)
+        args = parser.parse_args()
         
-    rd = MyRenvDevice(filename=args.filename)
-
-    with open(args.output, 'w') as f:
-        f.write(rd.getCapabilityStr())
-    rd.connect(host)
-    rd.run_forever()
+        rd = MyRenvDevice(filename=args.filename)
+        
+        with open(args.output, 'w') as f:
+            f.write(rd.getCapabilityStr())
+        rd.connect(host)
+        rd.run_forever()
+    except:
+        traceback.print_exc()
     
     
 if __name__ == '__main__':
