@@ -31,12 +31,8 @@ class MyRenvDevice(RenvDevice):
 
         paramInfo = self.buildParamInfo('arg1', 'String', 'Test argument')
         self.addCustomActionHandler('Echo2', 'Test Command', [paramInfo], self._handler)
-        print self.deviceInfoText
-        
-        self.updateDeviceInfo()
-
-        print '-'*20
-        print self.deviceInfoText
+        paramInfo2 = self.buildParamInfo('arg1', 'String', 'Test Data')
+        self.func = self.addCustomEvent('Send1', 'Test Event', [paramInfo2])
         pass
 
     def _handler(self, arg1):

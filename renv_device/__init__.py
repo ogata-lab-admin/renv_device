@@ -191,6 +191,7 @@ class RenvDevice():
 
         # Custom Action Handler
         self._capabilities = []
+        self._eventCapabilities = []
         self._customActionHandler = {}
 
 
@@ -535,8 +536,11 @@ class RenvDevice():
                     raise InvalidDocFormatError('Same Key is detected ("' + key[4: ] + '")')
 
                 capabilities.append(capability)
-        #for c in self._capabilities:
-        #    capabilities.append(c)
+        for c in self._capabilities:
+            capabilities.append(c)
+
+        for c in self._eventCapabilities:
+            capabilities.append(c)
 
         return {'capabilityList': capabilities}
 
@@ -591,5 +595,34 @@ class RenvDevice():
         event_name = capabilityInfo['eventName']
         self._customActionHandler[event_name] = func
         self._capabilities.append(capabilityInfo)
+        self.updateDeviceInfo()
 
+    def addCustomEvent(self, eventName, comment, paramInfos):
+        capabilityInfo = {
+            'eventName' : eventName,
+            'eventType': 'Out',
+            'eventComment': comment,
+            'hasParam': len(paramInfos) > 0,
+            'paramInfo': paramInfos }
+        
+        self._eventCapabilities.append(capabilityInfo)
+        self.updateDeviceInfo()
+        def _customEventFunc(eventName_=eventName, paramInfos_=paramInfos, **params):
+            data = {}
+            for key, value in params.items():
+                typeStr = ''
+                for p in paramInfos_:
+                    if p['paramName'] == key:
+                        typeStr = p['paramType']
+                data[key] = {u'val': value, u'type': typeStr}
+            msg = {
+                u'eventName': eventName_,
+                u'eventParam': data,
+                u'eventSendDeviceName': unicode(self.name + ':' + self.version, 'euc-jp').decode('utf-8')
 
+                }
+            text = json.dumps(msg)
+            self._ws[0].send(text)
+
+        return _customEventFunc
+            
