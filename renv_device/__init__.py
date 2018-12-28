@@ -168,7 +168,7 @@ class RenvDevice():
     :param String version: バージョン番号の文字列
     """
 
-    def __init__(self, typeId='', name='', filename=None, version="1.0.0", device_uuid=None, use_mta=False, deviceName=None, logger=None):
+    def __init__(self, typeId='', name='', filename=None, version="1.0.0", device_uuid=None, use_mta=False, deviceId='', devicePassword='', deviceName=None, logger=None):
         """ 
         イニシャライザ
 
@@ -179,21 +179,21 @@ class RenvDevice():
         """
         if logger is None:
             logging.basicConfig(filename="renv_device.log", format='%(levelname)s:%(asctime)s %(message)s')
-            logging.setLevel(logging.DEBUG)
+            # logging.setLevel(logging.DEBUG)
         self._logger = logger or getLogger(__name__)
         
         self.__typeId = typeId
         self.__name = name
         self.__version = version
         self.__uuid = device_uuid or str(uuid.uuid5(uuid.NAMESPACE_DNS, name + ':' + version))
-        self.__deviceId=''
-        self.__devicePassword=''
+        self.__deviceId=deviceId
+        self.__devicePassword=devicePassword
 
         # Custom Action Handler
         self._capabilities = []
         self._eventCapabilities = []
         self._customActionHandler = {}
-
+        self._customPlainActionHandler = {}
 
         if filename:
             with open(filename, 'r') as f:
@@ -222,11 +222,7 @@ class RenvDevice():
             self.debug('Using MTA: DeviceName = %s' % deviceName)
             text = json.dumps(self.deviceInfoText)
             self._mta = mtaDevice(name if deviceName is None else deviceName, firstMessage=text, logger=logger)
-
-        
         pass
-
-
 
     def updateDeviceInfo(self):
         """ デバイス記述子を再構築する．RendDeviceクラスを継承したクラスを再度継承した場合に使う
@@ -286,8 +282,6 @@ class RenvDevice():
 
     def _dispatch_mta(self, payload):
         self._dispatch_message(payload)
-
-    
         
     def connect(self, host, deviceId=None, devicePassword=None, proxy_host=None, proxy_port=None):
         """ ウェブソケットを初期化して指定されたホストに接続する場合に使うメソッド
@@ -314,17 +308,26 @@ class RenvDevice():
                                                on_close=lambda ws: self._on_close(ws),
                                                on_error=lambda ws,e: self._on_error(ws, e))
             self.__ws.on_open = lambda ws: self._on_open(ws)
-
-
-        
+        pass
+    
     def run_forever(self):
         """ ウェブソケットの受信待ちポーリングを開始する．
         割り込みが起こるまで終了しない """
         self.info("RenvDevice.run_forever()")
+
         if self._use_mta:
             self._mta.run_forever()
         else:
+            self.__ws.keep_running = True
             self.__ws.run_forever()
+        pass
+    
+    def stop_running(self):
+        self.info("RenvDevice.stop_running")
+        self.info(" - waiting for the thread stops")
+        self.__ws.keep_running = False
+        self.info(" - stop thread")
+        pass
 
     def execute(self):
         """ 実行．何もしない """
@@ -455,7 +458,9 @@ class RenvDevice():
                 self.debug('Calling custom_action_handler(name=%s)' % (msg['eventName']))
                 retval = func(**params)
                 return retval
-
+            if msg['eventName'] in self._customPlainActionHandler.keys():
+                func = self._customPlainActionHandler[msg['eventName']]
+                return func(msg['eventParam'])
             # まず，関数かどうか確認する
             if self._check_action_handler(key, msg['eventName']):
                 return self._call_action_handler(key, msg)
@@ -596,7 +601,19 @@ class RenvDevice():
         self._customActionHandler[event_name] = func
         self._capabilities.append(capabilityInfo)
         self.updateDeviceInfo()
-
+        
+    def addCustomPlainActionHandler(self, eventName, comment, paramInfo, func):
+        self.info('RenvDevice.addCutomPlainActionHandler()')
+        capabilityInfo = {
+            'eventName' : eventName,
+            'eventType' : 'In',
+            'eventComment' : comment,
+            'paramInfo' : paramInfo }
+        event_name = capabilityInfo['eventName']
+        self._customPlainActionHandler[event_name] = func
+        self._capabilities.append(capabilityInfo)
+        self.updateDeviceInfo()
+        
     def addCustomEvent(self, eventName, comment, paramInfos):
         capabilityInfo = {
             'eventName' : eventName,
@@ -608,6 +625,7 @@ class RenvDevice():
         self._eventCapabilities.append(capabilityInfo)
         self.updateDeviceInfo()
         def _customEventFunc(eventName_=eventName, paramInfos_=paramInfos, **params):
+
             data = {}
             for key, value in params.items():
                 typeStr = ''
@@ -622,7 +640,8 @@ class RenvDevice():
 
                 }
             text = json.dumps(msg)
-            self._ws[0].send(text)
+            if len(self._ws) > 0:
+                self._ws[0].send(text)
 
         return _customEventFunc
             
