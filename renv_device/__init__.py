@@ -3,7 +3,7 @@
 
 # renv_device.py
 
-import os, types, inspect, time, sys
+import os, types, inspect, time, sys, yaml
 import json
 import websocket, logging
 import uuid
@@ -168,25 +168,40 @@ class RenvDevice():
     :param String version: バージョン番号の文字列
     """
 
-    def __init__(self, typeId, name, version="1.0.0", device_uuid=None, use_mta=False, deviceName=None, logger=None):
+    def __init__(self, typeId='', name='', filename=None, version="1.0.0", device_uuid=None, use_mta=False, deviceName=None, logger=None):
         """ 
         イニシャライザ
 
         :param String typeId: タイプIDの文字列
         :param String name: デバイス名の文字列
         :param String version: バージョン番号の文字列
+        :param String filename: 
         """
         if logger is None:
             logging.basicConfig(filename="renv_device.log", format='%(levelname)s:%(asctime)s %(message)s')
+            logging.setLevel(logging.DEBUG)
         self._logger = logger or getLogger(__name__)
         
-
-        self.info("RenvDevice.__init__(typeId=%s, name=%s, version=%s, use_mta=%s, deviceName=%s)" % (typeId, name, version, use_mta, deviceName))
         self.__typeId = typeId
         self.__name = name
         self.__version = version
         self.__uuid = device_uuid or str(uuid.uuid5(uuid.NAMESPACE_DNS, name + ':' + version))
-        self._deviceName = name + ':' + version if deviceName is None else deviceName
+        self.__deviceId=''
+        self.__devicePassword=''
+
+        if filename:
+            with open(filename, 'r') as f:
+                y = yaml.load(f.read())
+                print y
+                self.__typeId = y['typeId']
+                self.__name   = y['name']
+                self.__version = y['version']
+                self.__uuid    = y['uuid']
+                self.__deviceId = y['deviceId']
+                self.__devicePassword = y['devicePassword']
+        self._deviceName = self.__name + ':' + self.__version if deviceName is None else deviceName
+
+        self.info("RenvDevice.__init__(typeId=%s, name=%s, version=%s, use_mta=%s, deviceName=%s)" % (typeId, name, version, use_mta, deviceName))
         self._ws = []
         print('RenvDevice: UUID       = ' + (self.__uuid))
         print('RenvDevice: deviceName = ' + (self._deviceName))
@@ -194,7 +209,7 @@ class RenvDevice():
         self.debug('RenvDevice: deviceName = ' + (self._deviceName))
         self._comment, params = _parse_doc('onInitialize', self.__doc__, [])
         self.deviceInfoText = self.getDeviceInfo()
-
+        
         self._use_mta = use_mta
         if self._use_mta:
             print ('Using MTA: DeviceName = %s' % deviceName)
@@ -262,8 +277,9 @@ class RenvDevice():
     def _dispatch_mta(self, payload):
         self._dispatch_message(payload)
 
-
-    def connect(self, host, proxy_host=None, proxy_port=None):
+    
+        
+    def connect(self, host, deviceId=None, devicePassword=None, proxy_host=None, proxy_port=None):
         """ ウェブソケットを初期化して指定されたホストに接続する場合に使うメソッド
 
         :param String host: ホストのIPアドレス
@@ -278,9 +294,11 @@ class RenvDevice():
             self._mta.connectToMta("ws://" + host, self._dispatch_mta)
 
         else:
-            print ('Conneting to R-env: "ws://%s"' % host)
-            self.info('Conneting to R-env: "ws://%s"' % host)
-            self.__ws = websocket.WebSocketApp("ws://" + host,
+            print ('Conneting to R-env: "wss://%s"' % host)
+            self.info('Conneting to R-env: "wss://%s"' % host)
+            if not deviceId: deviceId = self.__deviceId
+            if not devicePassword: devicePassword = self.__devicePassword
+            self.__ws = websocket.WebSocketApp("wss://" + host + '/?id=%s&password=%s' % (self.__deviceId, self.__devicePassword),
                                                on_message=self._on_message,
                                                on_close=self._on_close,
                                                on_error=self._on_error)
@@ -437,19 +455,14 @@ class RenvDevice():
             self._mta.sendMessage(text)
 
 
-
-    def getDeviceInfo(self):
-        """ 
-        コメント文字列からデバイス記述子を生成する 
-
-        :return Dictionary: デバイス記述子
-        """
-        self.info("RenvDevice.getDeviceInfo()")
+    def getCapabilityInfo(self):
         capabilities = []
         # RenvDeviceクラスオブジェクトのメンバを解析する
         for key in dir(self):
+            self.debug('For key %s' % key)
             # もしメンバがアクションハンドラならば
             if self._check_action_handler(key):
+                self.debug('Found Action Handler')
                 # 関数のドキュメントからCapability辞書を作成して登録する
                 args = getattr(self, key)._true_args
                 args = args[1:] # fist one is self
@@ -494,12 +507,26 @@ class RenvDevice():
 
                 capabilities.append(capability)
 
+        return {'capabilityList': capabilities}
+
+    def getCapabilityStr(self):
+        return json.dumps(self.getCapabilityInfo())
+
+    def getDeviceInfo(self):
+        """ 
+        コメント文字列からデバイス記述子を生成する 
+
+        :return Dictionary: デバイス記述子
+        """
+        self.info("RenvDevice.getDeviceInfo()")
+
+        capability = self.getCapabilityInfo()
                 
         deviceInfo = {"deviceTypeId": self.typeId,
                 "deviceId": self.uuid,
                 "deviceComment" : self._comment,
                 "deviceName": self.name + ':' + self.version if self._deviceName is None else self._deviceName,
-                "capabilityList": capabilities }
+                "capabilityList": capability['capabilityList'] }
 
         self.info("DeviceInfo:%s" % deviceInfo)
         return deviceInfo
