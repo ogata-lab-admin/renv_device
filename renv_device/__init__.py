@@ -302,7 +302,7 @@ class RenvDevice():
             self.info('Conneting to R-env: "wss://%s"' % host)
             if not deviceId: deviceId = self.__deviceId
             if not devicePassword: devicePassword = self.__devicePassword
-            websocket.enableTrace(True)
+            # websocket.enableTrace(True)
             self.__ws = websocket.WebSocketApp("wss://" + host + '/?id=%s&password=%s' % (self.__deviceId, self.__devicePassword),
                                                on_message=lambda ws, msg: self._on_message(ws,msg),
                                                on_close=lambda ws: self._on_close(ws),
