@@ -10,8 +10,8 @@ import uuid
 import functools
 
 from logging import getLogger
-
-from mta_sdk import mtaDevice
+#from mta_sdk import mtaDevice
+from renv_device.mta_sdk import mtaDevice
 
 
 
@@ -82,7 +82,7 @@ def event(func):
         if not return_value is None:
             name = func.__name__[4:]
             msg = {u'eventName': name,
-                   u'eventSendDeviceName': unicode(self.name + ':' + self.version, 'euc-jp').decode('utf-8'),
+                   u'eventSendDeviceName': str(self.name + ':' + self.version, 'euc-jp').decode('utf-8'),
                    # u'eventParam': return_value}
                    u'eventParam': param}
             json_str = json.dumps(msg)
@@ -162,13 +162,12 @@ def _parse_doc(func_name, doc, args):
             
 class RenvDevice():
     """ Renvデバイス用の基本クラス 
-
     :param String typeId: タイプIDの文字列
     :param String name: デバイス名の文字列
     :param String version: バージョン番号の文字列
     """
 
-    def __init__(self, typeId, name, version="1.0.0", device_uuid=None, use_mta=False, deviceName=None, logger=None):
+    def __init__(self, typeId, name, version="1.0.0", device_uuid=None, use_mta=False, deviceName=None, deviceAuthenticationKey=None, logger=None):
         """ 
         イニシャライザ
 
@@ -187,6 +186,14 @@ class RenvDevice():
         self.__version = version
         self.__uuid = device_uuid or str(uuid.uuid5(uuid.NAMESPACE_DNS, name + ':' + version))
         self._deviceName = name + ':' + version if deviceName is None else deviceName
+        self._deviceAuthenticationKey = deviceAuthenticationKey if deviceAuthenticationKey else ""
+
+        # Custom Action Handler
+        self._capabilities = []
+        self._eventCapabilities = []
+        self._customActionHandler = {}
+        self._customPlainActionHandler = {}
+
         self._ws = []
         print('RenvDevice: UUID       = ' + (self.__uuid))
         print('RenvDevice: deviceName = ' + (self._deviceName))
@@ -203,12 +210,17 @@ class RenvDevice():
             self._mta = mtaDevice(name if deviceName is None else deviceName, firstMessage=text, logger=logger)
         pass
 
+
+    def getLogger(self):
+        return self._logger
+
     def updateDeviceInfo(self):
         """ デバイス記述子を再構築する．RendDeviceクラスを継承したクラスを再度継承した場合に使う
         """
         self.info("RenvDevice.updateDeviceInfo()")
         self._comment = self.__doc__  # "deviceComment hogehoge" #_parse_doc('onInitialize', self.__doc__, [])
         self.deviceInfoText = self.getDeviceInfo()
+        # print(self.deviceInfoText)
         if self._use_mta:
             text = json.dumps(self.deviceInfoText)
             self._mta = mtaDevice(self.name, firstMessage=text)
@@ -254,10 +266,10 @@ class RenvDevice():
         :param ws: ウェブソケットオブジェクト
         """
         self.__ws = ws
-        ws.on_message = self._on_message
-        ws.on_close = self._on_close
-        ws.on_error = self._on_error
-        ws.on_open  = self._on_open
+        ws.on_message = lambda ws, msg: self._on_message(ws, msg)
+        ws.on_close = lambda ws: self._on_close(ws)
+        ws.on_error = lambda ws, err: self._on_error(ws, err)
+        ws.on_open  = lambda ws: self._on_open(ws)
 
     def _dispatch_mta(self, payload):
         self._dispatch_message(payload)
@@ -281,10 +293,10 @@ class RenvDevice():
             print ('Conneting to R-env: "ws://%s"' % host)
             self.info('Conneting to R-env: "ws://%s"' % host)
             self.__ws = websocket.WebSocketApp("ws://" + host,
-                                               on_message=self._on_message,
-                                               on_close=self._on_close,
-                                               on_error=self._on_error)
-            self.__ws.on_open = self._on_open
+                                               on_message=lambda ws, msg: self._on_message(ws, msg),
+                                               on_close=lambda ws: self._on_close(ws),
+                                               on_error=lambda ws, err: self._on_error(ws, err))
+            self.__ws.on_open = lambda ws: self._on_open(ws)
 
 
         
@@ -295,7 +307,17 @@ class RenvDevice():
         if self._use_mta:
             self._mta.run_forever()
         else:
+            self.__ws.keep_running = True
             self.__ws.run_forever()
+        pass
+
+
+    def stop_running(self):
+        self.info("RenvDevice.stop_running")
+        self.info(" - waiting for the thread stops")
+        self.__ws.keep_running = False
+        self.info(" - stop thread")
+        pass
 
     def execute(self):
         """ 実行．何もしない """
@@ -408,6 +430,27 @@ class RenvDevice():
 
         # 自分自身のインスタンスメソッド (もしくは後付けのメソッドメンバ) を解析する
         for key in dir(self): 
+            # Call Custom Action Handler if exists
+            if msg['eventName'] in self._customActionHandler.keys():
+                func = self._customActionHandler[msg['eventName']]
+                true_args, _, _, _ = inspect.getargspec(func)
+                params = {}
+                for arg_name in true_args[1:]:
+                    arg_name = unicode(arg_name, 'utf-8').decode('utf-8')
+                    if not arg_name in msg['eventParam'].keys():
+                        print('No action (name=%s) is found.' % (arg_name))
+                        self.error('No action (name=%s) is found.' % (arg_name))
+                        raise InvalidMessageError('EventType(' + key[2:] + ') parameter is invalid. ' +
+                                                  'Parameter(name="' + arg_name + '") does not found. ' +
+                                                  'msg["eventParam"] is :' + str(msg['eventParam']))
+                    param = msg['eventParam'][arg_name]
+                    params[arg_name] = param['val']
+                self.debug('Calling custom_action_handler(name=%s)' % (msg['eventName']))
+                retval = func(**params)
+                return retval
+            if msg['eventName'] in self._customPlainActionHandler.keys():
+                func = self._customPlainActionHandler[msg['eventName']]
+                return func(msg['eventParam'])
             # まず，関数かどうか確認する
             if self._check_action_handler(key, msg['eventName']):
                 return self._call_action_handler(key, msg)
@@ -428,7 +471,7 @@ class RenvDevice():
         msg = {
             u'eventName': eventName,
             u'eventParam': data,
-            u'eventSendDeviceName': unicode(self.name + ':' + self.version, 'euc-jp').decode('utf-8')
+            u'eventSendDeviceName': str(self.name + ':' + self.version, 'euc-jp').decode('utf-8')
             }
         text = json.dumps(msg)
         if len(self._ws) > 0 and not self._use_mta:
@@ -438,18 +481,14 @@ class RenvDevice():
 
 
 
-    def getDeviceInfo(self):
-        """ 
-        コメント文字列からデバイス記述子を生成する 
-
-        :return Dictionary: デバイス記述子
-        """
-        self.info("RenvDevice.getDeviceInfo()")
+    def getCapabilityInfo(self):
         capabilities = []
         # RenvDeviceクラスオブジェクトのメンバを解析する
         for key in dir(self):
+            self.debug('For key %s' % key)
             # もしメンバがアクションハンドラならば
             if self._check_action_handler(key):
+                self.debug('Found Action Handler')
                 # 関数のドキュメントからCapability辞書を作成して登録する
                 args = getattr(self, key)._true_args
                 args = args[1:] # fist one is self
@@ -493,15 +532,112 @@ class RenvDevice():
                     raise InvalidDocFormatError('Same Key is detected ("' + key[4: ] + '")')
 
                 capabilities.append(capability)
+        for c in self._capabilities:
+            capabilities.append(c)
 
+        for c in self._eventCapabilities:
+            capabilities.append(c)
+
+        return {'capabilityList': capabilities}
+
+    def getCapabilityStr(self):
+        return json.dumps(self.getCapabilityInfo())
+
+    
+    def getDeviceInfo(self):
+        """ 
+        コメント文字列からデバイス記述子を生成する 
+
+        :return Dictionary: デバイス記述子
+        """
+        self.info("RenvDevice.getDeviceInfo()")
+
+        capability = self.getCapabilityInfo()
                 
         deviceInfo = {"deviceTypeId": self.typeId,
-                "deviceId": self.uuid,
+                      "deviceId": self.uuid,
+                      "deviceAuthenticationKey": self._deviceAuthenticationKey,
                 "deviceComment" : self._comment,
                 "deviceName": self.name + ':' + self.version if self._deviceName is None else self._deviceName,
-                "capabilityList": capabilities }
+                "capabilityList": capability['capabilityList'] }
 
         self.info("DeviceInfo:%s" % deviceInfo)
         return deviceInfo
 
     
+    def buildParamInfo(self, paramName, paramType, paramComment, paramLimitation=None, altInfos=None):
+        
+        info = {u'paramName': paramName,
+                u'paramType': paramType,
+                u'paramComment': paramComment,
+                u'paramLimitation': paramLimitation if paramLimitation else u'FreeForm'}
+        if paramLimitation == 'SelectForm':
+            info[u'paramElements'] = altInfos
+        return info
+
+    def buildAltInfo(self, data_and_comment_list):
+        altInfos = []
+        for data, comment in data_and_comment_list:
+            altInfos.append({
+                'paramData': data,
+                'paramComment': comment})
+        return altInfos
+    
+    def addCustomActionHandler(self, eventName, comment, paramInfo, func):
+        self.info('RenvDevice.addCutomActionHandler()')
+        capabilityInfo = {
+            'eventName' : eventName,
+            'eventType' : 'In',
+            'eventComment' : comment,
+            'paramInfo' : paramInfo }
+        event_name = capabilityInfo['eventName']
+        self._customActionHandler[event_name] = func
+        self._capabilities.append(capabilityInfo)
+        self.updateDeviceInfo()
+        
+    def addCustomPlainActionHandler(self, eventName, comment, paramInfo, func):
+        self.info('RenvDevice.addCutomPlainActionHandler()')
+        capabilityInfo = {
+            u'eventName' : eventName,
+            u'eventType' : u'In',
+            u'eventComment' : comment,
+            u'hasParam': len(paramInfo) > 0,
+            u'paramInfo' : paramInfo }
+        event_name = eventName # capabilityInfo['eventName']
+        self._customPlainActionHandler[event_name] = func
+        self._capabilities.append(capabilityInfo)
+        self.updateDeviceInfo()
+        
+    def addCustomEvent(self, eventName, comment, paramInfos):
+        capabilityInfo = {
+            'eventName' : eventName,
+            'eventType': 'Out',
+            'eventComment': comment,
+            'hasParam': len(paramInfos) > 0,
+            'paramInfo': paramInfos }
+        
+        self._eventCapabilities.append(capabilityInfo)
+        self.updateDeviceInfo()
+        def _customEventFunc(eventName_=eventName, paramInfos_=paramInfos, **params):
+            data = {}
+            for key, value in params.items():
+                typeStr = ''
+                for p in paramInfos_:
+                    if p['paramName'] == key:
+                        typeStr = p['paramType']
+                v = value
+                if typeStr == 'Int': v = int(value)
+                data[key] = {u'val': v, u'type': typeStr}
+            msg = {
+                u'eventName': eventName_,
+                u'eventParam': data,
+                u'eventSendDeviceName': self.name + ':' + self.version #str(self.name + ':' + self.version, 'euc-jp').decode('utf-8')
+
+                }
+            text = json.dumps(msg)
+            #print('_customEventFunc(eventName=%s): %s' % (eventName_, text))
+            if len(self._ws) > 0:
+                self._ws[0].send(text)
+
+        return _customEventFunc
+            
