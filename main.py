@@ -1,19 +1,20 @@
 #!/usr/bin/env python
-# -encoding: utf-8 
+#encoding: utf-8 
 
-import os, sys, traceback, logging, codecs, argparse
+import os, sys, traceback, logging
 
 from logging import getLogger
-
 from renv_device import RenvDevice, actionHandler, event
 # sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
 
 #host = "localhost:8080"
-host = "renv.xfarm.jp:8443"
+
+#host = "192.168.1.24:8080"
+#host = "192.168.128.157:8080"
+host = "192.168.170.237:8080"
 use_mta = False
 mta_host = "192.168.128.130:8001"
-
-
+key="xKV927K9MuAmkj+N3qgADjaZ+BkABc3BUbtDLbEIldk="
 logging.basicConfig(filename='example.log',level=logging.DEBUG, format='%(levelname)s:%(asctime)s %(message)s')
 logger = getLogger(__name__)
 
@@ -26,7 +27,7 @@ class MyRenvDevice(RenvDevice):
         """
 
         # RenvDevice.__init__(self, 'WEB.DEVICE.TESTER', 'ogata-tester', use_mta=False)
-        RenvDevice.__init__(self, filename=filename, logger=logger)
+        RenvDevice.__init__(self, 'WEB.DEVICE.NME_TESTER', 'ogata-tester', use_mta=use_mta, deviceName="NME_TESTER", logger=logger, deviceAuthenticationKey=key)
         self._msg_buffer = []
 
         paramInfo = self.buildParamInfo('arg1', 'String', 'Test argument')
