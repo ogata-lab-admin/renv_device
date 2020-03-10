@@ -167,11 +167,8 @@ class RenvDevice():
     :param String version: バージョン番号の文字列
     """
 
-<<<<<<< HEAD
-    def __init__(self, typeId='', name='', filename=None, version="1.0.0", device_uuid=None, use_mta=False, deviceId='', devicePassword='', deviceName=None, logger=None):
-=======
     def __init__(self, typeId, name, version="1.0.0", device_uuid=None, use_mta=False, deviceName=None, deviceAuthenticationKey=None, logger=None):
->>>>>>> 7a37eb0
+
         """ 
         イニシャライザ
 
@@ -189,13 +186,9 @@ class RenvDevice():
         self.__name = name
         self.__version = version
         self.__uuid = device_uuid or str(uuid.uuid5(uuid.NAMESPACE_DNS, name + ':' + version))
-<<<<<<< HEAD
-        self.__deviceId=deviceId
-        self.__devicePassword=devicePassword
-=======
         self._deviceName = name + ':' + version if deviceName is None else deviceName
         self._deviceAuthenticationKey = deviceAuthenticationKey if deviceAuthenticationKey else ""
->>>>>>> 7a37eb0
+
 
         # Custom Action Handler
         self._capabilities = []
@@ -203,22 +196,6 @@ class RenvDevice():
         self._customActionHandler = {}
         self._customPlainActionHandler = {}
 
-<<<<<<< HEAD
-        if filename:
-            with open(filename, 'r') as f:
-                y = yaml.load(f.read())
-                print y
-                self.__typeId = y['typeId']
-                self.__name   = y['name']
-                self.__version = y['version']
-                self.__uuid    = y['uuid']
-                self.__deviceId = y['deviceId']
-                self.__devicePassword = y['devicePassword']
-        self._deviceName = self.__name + ':' + self.__version if deviceName is None else deviceName
-
-        self.info("RenvDevice.__init__(typeId=%s, name=%s, version=%s, use_mta=%s, deviceName=%s)" % (typeId, name, version, use_mta, deviceName))
-=======
->>>>>>> 7a37eb0
         self._ws = []
         print('RenvDevice: UUID       = ' + (self.__uuid))
         print('RenvDevice: deviceName = ' + (self._deviceName))
@@ -314,20 +291,6 @@ class RenvDevice():
             self._mta.connectToMta("ws://" + host, self._dispatch_mta)
 
         else:
-<<<<<<< HEAD
-            print ('Conneting to R-env: "wss://%s"' % host)
-            self.info('Conneting to R-env: "wss://%s"' % host)
-            if not deviceId: deviceId = self.__deviceId
-            if not devicePassword: devicePassword = self.__devicePassword
-            # websocket.enableTrace(True)
-            self.__ws = websocket.WebSocketApp("wss://" + host + '/?id=%s&password=%s' % (self.__deviceId, self.__devicePassword),
-                                               on_message=lambda ws, msg: self._on_message(ws,msg),
-                                               on_close=lambda ws: self._on_close(ws),
-                                               on_error=lambda ws,e: self._on_error(ws, e))
-            self.__ws.on_open = lambda ws: self._on_open(ws)
-        pass
-    
-=======
             print ('Conneting to R-env: "ws://%s"' % host)
             self.info('Conneting to R-env: "ws://%s"' % host)
             self.__ws = websocket.WebSocketApp("ws://" + host,
@@ -336,9 +299,6 @@ class RenvDevice():
                                                on_error=lambda ws, err: self._on_error(ws, err))
             self.__ws.on_open = lambda ws: self._on_open(ws)
 
-
-        
->>>>>>> 7a37eb0
     def run_forever(self):
         """ ウェブソケットの受信待ちポーリングを開始する．
         割り込みが起こるまで終了しない """
@@ -350,12 +310,7 @@ class RenvDevice():
             self.__ws.keep_running = True
             self.__ws.run_forever()
         pass
-<<<<<<< HEAD
-    
-=======
 
-
->>>>>>> 7a37eb0
     def stop_running(self):
         self.info("RenvDevice.stop_running")
         self.info(" - waiting for the thread stops")
@@ -473,11 +428,8 @@ class RenvDevice():
             return
 
         # 自分自身のインスタンスメソッド (もしくは後付けのメソッドメンバ) を解析する
-<<<<<<< HEAD
-        for key in dir(self):
-=======
         for key in dir(self): 
->>>>>>> 7a37eb0
+
             # Call Custom Action Handler if exists
             if msg['eventName'] in self._customActionHandler.keys():
                 func = self._customActionHandler[msg['eventName']]
@@ -528,10 +480,6 @@ class RenvDevice():
             self._mta.sendMessage(text)
 
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 7a37eb0
     def getCapabilityInfo(self):
         capabilities = []
         # RenvDeviceクラスオブジェクトのメンバを解析する
@@ -590,18 +538,10 @@ class RenvDevice():
             capabilities.append(c)
 
         return {'capabilityList': capabilities}
-<<<<<<< HEAD
 
     def getCapabilityStr(self):
         return json.dumps(self.getCapabilityInfo())
 
-=======
-
-    def getCapabilityStr(self):
-        return json.dumps(self.getCapabilityInfo())
-
-    
->>>>>>> 7a37eb0
     def getDeviceInfo(self):
         """ 
         コメント文字列からデバイス記述子を生成する 
@@ -641,8 +581,7 @@ class RenvDevice():
                 'paramComment': comment})
         return altInfos
     
-<<<<<<< HEAD
-=======
+
     def buildParamInfo(self, paramName, paramType, paramComment, paramLimitation=None, altInfos=None):
         
         info = {u'paramName': paramName,
@@ -660,8 +599,7 @@ class RenvDevice():
                 'paramData': data,
                 'paramComment': comment})
         return altInfos
-    
->>>>>>> 7a37eb0
+
     def addCustomActionHandler(self, eventName, comment, paramInfo, func):
         self.info('RenvDevice.addCutomActionHandler()')
         capabilityInfo = {
@@ -677,20 +615,13 @@ class RenvDevice():
     def addCustomPlainActionHandler(self, eventName, comment, paramInfo, func):
         self.info('RenvDevice.addCutomPlainActionHandler()')
         capabilityInfo = {
-<<<<<<< HEAD
-            'eventName' : eventName,
-            'eventType' : 'In',
-            'eventComment' : comment,
-            'paramInfo' : paramInfo }
-        event_name = capabilityInfo['eventName']
-=======
             u'eventName' : eventName,
             u'eventType' : u'In',
             u'eventComment' : comment,
             u'hasParam': len(paramInfo) > 0,
             u'paramInfo' : paramInfo }
         event_name = eventName # capabilityInfo['eventName']
->>>>>>> 7a37eb0
+
         self._customPlainActionHandler[event_name] = func
         self._capabilities.append(capabilityInfo)
         self.updateDeviceInfo()
@@ -706,26 +637,13 @@ class RenvDevice():
         self._eventCapabilities.append(capabilityInfo)
         self.updateDeviceInfo()
         def _customEventFunc(eventName_=eventName, paramInfos_=paramInfos, **params):
-<<<<<<< HEAD
 
-=======
->>>>>>> 7a37eb0
             data = {}
             for key, value in params.items():
                 typeStr = ''
                 for p in paramInfos_:
                     if p['paramName'] == key:
                         typeStr = p['paramType']
-<<<<<<< HEAD
-                data[key] = {u'val': value, u'type': typeStr}
-            msg = {
-                u'eventName': eventName_,
-                u'eventParam': data,
-                u'eventSendDeviceName': unicode(self.name + ':' + self.version, 'euc-jp').decode('utf-8')
-
-                }
-            text = json.dumps(msg)
-=======
                 v = value
                 if typeStr == 'Int': v = int(value)
                 data[key] = {u'val': v, u'type': typeStr}
@@ -737,7 +655,6 @@ class RenvDevice():
                 }
             text = json.dumps(msg)
             #print('_customEventFunc(eventName=%s): %s' % (eventName_, text))
->>>>>>> 7a37eb0
             if len(self._ws) > 0:
                 self._ws[0].send(text)
 
